@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vorschul Mathe Kategorien - Pränumerik Lernspiel</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Fredoka -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            font-family: 'Fredoka', cursive, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            touch-action: manipulation;
+            /* Dunkler, türkis-blauer Hintergrund mit leichtem Verlauf */
+            background: radial-gradient(circle at center, #0284c7 0%, #0369a1 50%, #082f49 100%);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        .pop-in {
+            animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.6); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .shake {
+            animation: shake 0.45s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-3px, 0, 0); }
+            20%, 80% { transform: translate3d(5px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-7px, 0, 0); }
+            40%, 60% { transform: translate3d(7px, 0, 0); }
+        }
+
+        .bounce-slow {
+            animation: bounce 2.5s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .btn-3d {
+            transition: all 0.12s ease;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-3d:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* Einheitlicher gelber Rahmen (border-amber-400), der dynamisch grün/rot übersteuert werden kann */
+        .game-card {
+            transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border: 6px solid #fbbf24; 
+            background-color: #0369a1;
+            overflow: hidden;
+        }
+
+        .game-card:active {
+            transform: scale(0.95);
+        }
+
+        /* Foto füllt die Karte vollständig aus – kein weißer Rand */
+        .card-img {
+            object-fit: cover;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen justify-between p-3 md:p-6 select-none">
+
+    <!-- HEADER / OBERE LEISTE -->
+    <header class="w-full max-w-5xl mx-auto flex justify-between items-center bg-sky-950/85 backdrop-blur-md rounded-3xl p-3 md:p-4 shadow-2xl border-2 border-sky-400/30 shrink-0 z-10">
+        <!-- Home Button -->
+        <button id="btn-home" onclick="returnToMainMenu()" class="w-14 h-14 md:w-16 md:h-16 bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-2xl flex items-center justify-center text-2xl md:text-3xl font-extrabold btn-3d transition-all opacity-50 pointer-events-none" title="Hauptmenü">
+            <i class="fa-solid fa-house"></i>
+        </button>
+
+        <!-- Punkteanzeige (0 / 6) -->
+        <div class="flex items-center gap-3 bg-sky-900/90 px-6 py-2 rounded-2xl border-2 border-sky-400/50 shadow-inner">
+            <i class="fa-solid fa-star text-amber-400 text-3xl md:text-4xl animate-pulse"></i>
+            <span id="score-display" class="text-3xl md:text-4xl font-extrabold text-white tracking-wide">0</span>
+            <span class="text-sky-300 font-bold text-xl md:text-2xl">/ 6</span>
+        </div>
+
+        <!-- Audio Stummschaltung (Absolut stumm beim Klicken, ohne Sprachanagebe) -->
+        <button id="btn-audio" onclick="toggleAudio()" class="w-14 h-14 md:w-16 md:h-16 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl flex items-center justify-center text-2xl md:text-3xl btn-3d transition-all" title="Ton an/aus">
+            <i id="audio-icon" class="fa-solid fa-volume-high"></i>
+        </button>
+    </header>
+
+    <!-- HAUPTBEREICH -->
+    <main class="w-full max-w-5xl mx-auto flex-1 flex flex-col justify-center items-center my-auto relative overflow-hidden">
+
+        <!-- 1. STARTBILDSCHIRM -->
+        <div id="screen-start" class="w-full h-full flex flex-col items-center justify-center py-4 text-center pop-in">
+            <div class="bg-sky-950/90 backdrop-blur-md border-4 border-sky-300/40 p-8 md:p-12 rounded-3xl shadow-2xl max-w-2xl w-full flex flex-col items-center gap-8">
+                
+                <div class="flex gap-4 text-5xl md:text-7xl bounce-slow">
+                    <span>🐶</span><span>🍎</span><span>🚒</span><span>🧸</span>
+                </div>
+
+                <div>
+                    <h1 class="text-4xl md:text-6xl font-black text-white tracking-wider drop-shadow-md">
+                        Kategorien-Finder
+                    </h1>
+                </div>
+
+                <button onclick="startNewGame()" class="w-full max-w-md py-6 bg-amber-400 hover:bg-amber-500 text-amber-950 text-3xl md:text-5xl font-black rounded-3xl btn-3d border-4 border-amber-200 flex items-center justify-center gap-4 transition-all mt-2">
+                    <i class="fa-solid fa-play"></i> START
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. SPIELBILDSCHIRM -->
+        <div id="screen-game" class="w-full h-full flex flex-col items-center justify-between hidden py-2">
+            
+            <!-- Aufgabentext mit ORANGEM Vorlese-Button und gelbem Rahmen -->
+            <div class="w-full flex items-center justify-center gap-3 my-2">
+                <div class="bg-white px-6 py-4 rounded-3xl border-4 border-amber-400 shadow-2xl flex items-center justify-center gap-4 max-w-2xl w-full">
+                    <button onclick="speakTask()" class="w-14 h-14 md:w-16 md:h-16 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl flex items-center justify-center text-2xl md:text-3xl shrink-0 btn-3d transition-all" title="Aufgabe erneut vorlesen">
+                        <i class="fa-solid fa-volume-high"></i>
+                    </button>
+                    <span id="task-text" class="text-2xl md:text-4xl font-extrabold text-slate-900 text-center leading-snug">
+                        Finde ein Tier!
+                    </span>
+                </div>
+            </div>
+
+            <!-- 3 Antwort-Karten mit einheitlichen gelben Rahmen (border-amber-400) und randfüllenden Fotos -->
+            <div id="cards-container" class="w-full max-w-4xl grid grid-cols-3 gap-4 md:gap-8 my-auto px-2">
+                <!-- Dynamisch generiert -->
+            </div>
+
+            <!-- Feedback Zeile -->
+            <div id="feedback-message" class="h-10 md:h-12 flex items-center justify-center text-3xl md:text-4xl font-black text-emerald-300 drop-shadow-lg transition-opacity opacity-0">
+                Super gemacht! ✨
+            </div>
+        </div>
+
+        <!-- 3. ENDBILDSCHIRM -->
+        <div id="screen-end" class="w-full h-full flex flex-col items-center justify-center hidden py-4 pop-in">
+            <div class="bg-white/95 rounded-3xl p-6 md:p-10 shadow-2xl border-8 border-amber-400 max-w-xl w-full text-center flex flex-col items-center gap-6">
+                
+                <div class="text-7xl md:text-9xl bounce-slow">🏆</div>
+                
+                <div>
+                    <h2 class="text-4xl md:text-6xl font-black text-slate-900">Toll gemacht!</h2>
+                    <p class="text-sky-800 text-xl md:text-2xl font-bold mt-1">
+                        Du hast alle 6 Aufgaben gelöst!
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-3 bg-amber-100 px-8 py-3 rounded-2xl border-4 border-amber-300">
+                    <i class="fa-solid fa-star text-amber-500 text-4xl md:text-5xl"></i>
+                    <span class="text-3xl md:text-5xl font-black text-amber-950">6 / 6</span>
+                </div>
+
+                <!-- Buttons nach Spielende -->
+                <div class="flex flex-col sm:flex-row w-full gap-4 mt-2">
+                    <button onclick="startNewGame()" class="flex-1 py-5 bg-emerald-500 hover:bg-emerald-600 text-white text-2xl md:text-3xl font-black rounded-2xl btn-3d border-2 border-emerald-300 flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-rotate-right"></i> Nochmal
+                    </button>
+                    <button onclick="returnToMainMenu()" class="flex-1 py-5 bg-sky-600 hover:bg-sky-700 text-white text-2xl md:text-3xl font-black rounded-2xl btn-3d border-2 border-sky-300 flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-house"></i> Start
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        /*
+          STRIKTE DATENBANK (URHEBERRECHTLICH SICHERE CC0 & PUBLIC DOMAIN FOTOS)
+          - Keine Gebäude, keine Kabel, kein Shampoo, keine Rucksäcke.
+          - Eindeutige Kategorien und ganzer Gegenstand sichtbar.
+        */
+        const DATABASE = {
+            "Tier": {
+                prompt: "Finde ein Tier!",
+                speechPrompt: "Finde ein T'ier!", // Phonetisch korrigiertes hartes T
+                tag: "tier",
+                items: [
+                    { 
+                        id: "t_hund", name: "Hund", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/Labrador_on_Quantock_Meadows.jpg/800px-Labrador_on_Quantock_Meadows.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80",
+                        tags: ["tier"] 
+                    },
+                    { 
+                        id: "t_katze", name: "Katze", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/800px-Cat03.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80",
+                        tags: ["tier"] 
+                    },
+                    { 
+                        id: "t_elefant", name: "Elefant", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/African_Bush_Elephant.jpg/800px-African_Bush_Elephant.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?auto=format&fit=crop&w=800&q=80",
+                        tags: ["tier"] 
+                    },
+                    { 
+                        id: "t_pferd", name: "Pferd", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Horse_paddock.jpg/800px-Horse_paddock.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1553284965-83fd3e82fa5a?auto=format&fit=crop&w=800&q=80",
+                        tags: ["tier"] 
+                    },
+                    { 
+                        id: "t_kuh", name: "Kuh", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Cow_female_black_white.jpg/800px-Cow_female_black_white.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1546445317-29f4545f9d52?auto=format&fit=crop&w=800&q=80",
+                        tags: ["tier"] 
+                    }
+                ]
+            },
+            "Essen": {
+                prompt: "Finde etwas zu Essen!",
+                speechPrompt: "Finde etwas zu Essen!",
+                tag: "essen",
+                items: [
+                    { 
+                        id: "e_apfel", name: "Apfel", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Red_Apple.jpg/800px-Red_Apple.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=800&q=80",
+                        tags: ["essen"] 
+                    },
+                    { 
+                        id: "e_banane", name: "Banane", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Banana-Single.jpg/800px-Banana-Single.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=800&q=80",
+                        tags: ["essen"] 
+                    },
+                    { 
+                        id: "e_brot", name: "Brot", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Kaisersemmel-2.jpg/800px-Kaisersemmel-2.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80",
+                        tags: ["essen"] 
+                    },
+                    { 
+                        id: "e_karotte", name: "Karotte", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Carrot-Juice-02.jpg/800px-Carrot-Juice-02.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1598170845058-12ef4a457939?auto=format&fit=crop&w=800&q=80",
+                        tags: ["essen"] 
+                    },
+                    { 
+                        id: "e_erdbeere", name: "Erdbeere", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Strawberries.jpg/800px-Strawberries.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1464965911861-746a04b4bca6?auto=format&fit=crop&w=800&q=80",
+                        tags: ["essen"] 
+                    }
+                ]
+            },
+            "Fahrzeug": {
+                prompt: "Finde ein Fahrzeug!",
+                speechPrompt: "Finde ein Fahrzeug!",
+                tag: "fahrzeug",
+                items: [
+                    { 
+                        id: "f_auto", name: "Auto", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Red_car.jpg/800px-Red_car.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80",
+                        tags: ["fahrzeug"] 
+                    },
+                    { 
+                        id: "f_traktor", name: "Traktor", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/03/Fendt_Vario_724.jpg/800px-Fendt_Vario_724.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1530267981375-f0de937f5f13?auto=format&fit=crop&w=800&q=80",
+                        tags: ["fahrzeug"] 
+                    },
+                    { 
+                        id: "f_fahrrad", name: "Fahrrad", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Nutthead_bicycle.jpg/800px-Nutthead_bicycle.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80",
+                        tags: ["fahrzeug"] 
+                    },
+                    { 
+                        id: "f_bus", name: "Bus", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/LT_471_%28LTZ_1471%29_Arriva_London_New_Routemaster_%2819586144005%29.jpg/800px-LT_471_%28LTZ_1471%29_Arriva_London_New_Routemaster_%2819586144005%29.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1570125909232-eb263c188f7e?auto=format&fit=crop&w=800&q=80",
+                        tags: ["fahrzeug"] 
+                    },
+                    { 
+                        id: "f_flugzeug", name: "Flugzeug", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Boeing_747-8F_N854GT_Atlas_Air_%28cropped%29.jpg/800px-Boeing_747-8F_N854GT_Atlas_Air_%28cropped%29.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80",
+                        tags: ["fahrzeug"] 
+                    }
+                ]
+            },
+            "Kleidung": {
+                prompt: "Finde etwas zum Anziehen!",
+                speechPrompt: "Finde etwas zum Anziehen!",
+                tag: "kleidung",
+                items: [
+                    { 
+                        id: "k_tshirt", name: "T-Shirt", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Blue_Tshirt.jpg/800px-Blue_Tshirt.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80",
+                        tags: ["kleidung"] 
+                    },
+                    { 
+                        id: "k_hose", name: "Hose", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Jeans_custom.jpg/800px-Jeans_custom.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=800&q=80",
+                        tags: ["kleidung"] 
+                    },
+                    { 
+                        id: "k_schuhe", name: "Schuhe", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Pair_of_sneakers.jpg/800px-Pair_of_sneakers.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80",
+                        tags: ["kleidung"] 
+                    },
+                    { 
+                        id: "k_muetze", name: "Mütze", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Red_beanie.jpg/800px-Red_beanie.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?auto=format&fit=crop&w=800&q=80",
+                        tags: ["kleidung"] 
+                    }
+                ]
+            },
+            "Schulsachen": {
+                prompt: "Finde Schulsachen!",
+                speechPrompt: "Finde Schulsachen!",
+                tag: "schulsachen",
+                items: [
+                    { 
+                        id: "s_buntstifte", name: "Buntstifte", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Crayon_set.jpg/800px-Crayon_set.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&w=800&q=80",
+                        tags: ["schulsachen"] 
+                    },
+                    { 
+                        id: "s_ranzen", name: "Schulranzen", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/School_backpack.jpg/800px-School_backpack.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=800&q=80",
+                        tags: ["schulsachen"] 
+                    },
+                    { 
+                        id: "s_lineal", name: "Lineal", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Wooden_ruler.jpg/800px-Wooden_ruler.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1588072432836-e10032774350?auto=format&fit=crop&w=800&q=80",
+                        tags: ["schulsachen"] 
+                    },
+                    { 
+                        id: "s_mappchen", name: "Federmäppchen", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/Pencil_case_open.jpg/800px-Pencil_case_open.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1585336261026-875a60a1c92f?auto=format&fit=crop&w=800&q=80",
+                        tags: ["schulsachen"] 
+                    }
+                ]
+            },
+            "Spielzeug": {
+                prompt: "Finde Spielzeug!",
+                speechPrompt: "Finde Spielzeug!",
+                tag: "spielzeug",
+                items: [
+                    { 
+                        id: "sp_teddy", name: "Teddybär", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Teddy_bear_brown.jpg/800px-Teddy_bear_brown.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1559454403-b8fb88521f11?auto=format&fit=crop&w=800&q=80",
+                        tags: ["spielzeug"] 
+                    },
+                    { 
+                        id: "sp_bausteine", name: "Holzbausteine", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Wooden_building_blocks.jpg/800px-Wooden_building_blocks.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&w=800&q=80",
+                        tags: ["spielzeug"] 
+                    },
+                    { 
+                        id: "sp_auto", name: "Spielzeugauto", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Toy_car_red.jpg/800px-Toy_car_red.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&w=800&q=80",
+                        tags: ["spielzeug"] 
+                    },
+                    { 
+                        id: "sp_puppe", name: "Puppe", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Doll_rag_toy.jpg/800px-Doll_rag_toy.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?auto=format&fit=crop&w=800&q=80",
+                        tags: ["spielzeug"] 
+                    }
+                ]
+            },
+            "Mensch": {
+                prompt: "Finde einen Menschen!",
+                speechPrompt: "Finde einen Menschen!",
+                tag: "mensch",
+                items: [
+                    { 
+                        id: "m_kind", name: "Schulkind", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Schoolgirl_smiling.jpg/800px-Schoolgirl_smiling.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?auto=format&fit=crop&w=800&q=80",
+                        tags: ["mensch"] 
+                    },
+                    { 
+                        id: "m_baby", name: "Baby", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Baby_smiling.jpg/800px-Baby_smiling.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=800&q=80",
+                        tags: ["mensch"] 
+                    },
+                    { 
+                        id: "m_oma", name: "Oma", 
+                        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Grandmother_portrait.jpg/800px-Grandmother_portrait.jpg", 
+                        fallback: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=800&q=80",
+                        tags: ["mensch"] 
+                    }
+                ]
+            }
+        };
+
+        const CATEGORY_KEYS = Object.keys(DATABASE);
+        const TOTAL_QUESTIONS = 6;
+
+        /* SPIELSTATUS */
+        let score = 0;
+        let currentQuestion = 0;
+        let isAudioMuted = false;
+        let isAnsweringBlocked = false;
+
+        let lastCategoryKey = null;
+        let usedImageIdsInRun = new Set();
+        let currentSpeechPromptText = "";
+
+        /* AUDIO SYNTHESE & WEB AUDIO API */
+        let audioCtx = null;
+
+        function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (isAudioMuted) return;
+            initAudioContext();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'correct') {
+                const freqs = [523.25, 659.25, 783.99, 1046.50];
+                freqs.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+                    gain.gain.setValueAtTime(0.25, now + idx * 0.07);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.28);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + idx * 0.07);
+                    osc.stop(now + idx * 0.07 + 0.28);
+                });
+            } else if (type === 'wrong') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.22);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.22);
+            } else if (type === 'click') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(480, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            }
+        }
+
+        /* PHONETISCHE KORREKTUR FÜR HARTES "T" BEI TIER */
+        function prepareTextForSpeech(rawText) {
+            return rawText.replace(/T-ier|Tier/g, "T'ier");
+        }
+
+        function speak(text, callback) {
+            if (isAudioMuted || !('speechSynthesis' in window)) {
+                if (callback) callback();
+                return;
+            }
+
+            window.speechSynthesis.cancel();
+            
+            const processedText = prepareTextForSpeech(text);
+            const utterance = new SpeechSynthesisUtterance(processedText);
+            utterance.lang = 'de-DE';
+            utterance.rate = 0.65; // Sehr langsam und deutlich für Vorschulkinder
+            utterance.pitch = 1.05;
+
+            if (callback) {
+                utterance.onend = callback;
+                utterance.onerror = callback;
+            }
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        /* AUDIO BUTTON: STUMM OHNE GESPROCHENES FEEDBACK */
+        function toggleAudio() {
+            isAudioMuted = !isAudioMuted;
+            const icon = document.getElementById('audio-icon');
+            const btn = document.getElementById('btn-audio');
+
+            if (isAudioMuted) {
+                icon.className = 'fa-solid fa-volume-xmark';
+                btn.classList.remove('bg-emerald-500');
+                btn.classList.add('bg-slate-500');
+                window.speechSynthesis.cancel();
+            } else {
+                icon.className = 'fa-solid fa-volume-high';
+                btn.classList.remove('bg-slate-500');
+                btn.classList.add('bg-emerald-500');
+            }
+        }
+
+        function showScreen(screenId) {
+            ['screen-start', 'screen-game', 'screen-end'].forEach(id => {
+                const el = document.getElementById(id);
+                if (id === screenId) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+
+            const homeBtn = document.getElementById('btn-home');
+            if (screenId === 'screen-start') {
+                homeBtn.classList.add('opacity-50', 'pointer-events-none');
+            } else {
+                homeBtn.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('score-display').innerText = score;
+        }
+
+        function startNewGame() {
+            initAudioContext();
+            playSound('click');
+            score = 0;
+            currentQuestion = 0;
+            lastCategoryKey = null;
+            usedImageIdsInRun.clear();
+            updateScoreDisplay();
+            showNextQuestion();
+            showScreen('screen-game');
+        }
+
+        function returnToMainMenu() {
+            playSound('click');
+            window.speechSynthesis.cancel();
+            showScreen('screen-start');
+        }
+
+        function getRandomElem(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function shuffle(arr) {
+            return [...arr].sort(() => Math.random() - 0.5);
+        }
+
+        function getValidDistractors(targetCatKey, count) {
+            const targetTag = DATABASE[targetCatKey].tag;
+            const candidates = [];
+
+            CATEGORY_KEYS.forEach(key => {
+                if (key !== targetCatKey) {
+                    DATABASE[key].items.forEach(item => {
+                        if (!usedImageIdsInRun.has(item.id) && !item.tags.includes(targetTag)) {
+                            candidates.push(item);
+                        }
+                    });
+                }
+            });
+
+            let chosenList = shuffle(candidates);
+            if (chosenList.length < count) {
+                const fallbackCandidates = [];
+                CATEGORY_KEYS.forEach(key => {
+                    if (key !== targetCatKey) {
+                        DATABASE[key].items.forEach(item => {
+                            if (!item.tags.includes(targetTag)) {
+                                fallbackCandidates.push(item);
+                            }
+                        });
+                    }
+                });
+                chosenList = shuffle(fallbackCandidates);
+            }
+
+            const selected = [];
+            const usedCats = new Set();
+
+            for (const cand of chosenList) {
+                const candCat = CATEGORY_KEYS.find(k => DATABASE[k].items.some(i => i.id === cand.id));
+                if (!usedCats.has(candCat)) {
+                    selected.push(cand);
+                    usedCats.add(candCat);
+                }
+                if (selected.length === count) break;
+            }
+
+            return selected;
+        }
+
+        function showNextQuestion() {
+            isAnsweringBlocked = false;
+            document.getElementById('feedback-message').classList.add('opacity-0');
+
+            // 1. Niemals zweimal dieselbe Kategorie hintereinander
+            let availableCats = CATEGORY_KEYS.filter(k => k !== lastCategoryKey);
+            const targetCatKey = getRandomElem(availableCats);
+            lastCategoryKey = targetCatKey;
+
+            const targetCatData = DATABASE[targetCatKey];
+            currentSpeechPromptText = targetCatData.speechPrompt || targetCatData.prompt;
+
+            // 2. Keine doppelten Bilder aus dem vorherigen Durchgang
+            let unusedItems = targetCatData.items.filter(i => !usedImageIdsInRun.has(i.id));
+            if (unusedItems.length === 0) {
+                unusedItems = targetCatData.items;
+            }
+            const correctItem = getRandomElem(unusedItems);
+            usedImageIdsInRun.add(correctItem.id);
+
+            // 3. Distraktoren wählen
+            const distractors = getValidDistractors(targetCatKey, 2);
+            distractors.forEach(d => usedImageIdsInRun.add(d.id));
+
+            // 4. Optionen mischen
+            const options = shuffle([
+                { ...correctItem, isCorrect: true },
+                { ...distractors[0], isCorrect: false },
+                { ...distractors[1], isCorrect: false }
+            ]);
+
+            document.getElementById('task-text').innerText = targetCatData.prompt;
+
+            // Karten rendern mit einheitlichen gelben Rahmen
+            const container = document.getElementById('cards-container');
+            container.innerHTML = '';
+
+            options.forEach((opt, idx) => {
+                const card = document.createElement('button');
+                card.className = `game-card rounded-3xl aspect-square w-full pop-in relative overflow-hidden`;
+                card.style.animationDelay = `${idx * 0.08}s`;
+
+                card.innerHTML = `
+                    <img src="${opt.img}" alt="${opt.name}" class="card-img" onerror="this.onerror=null; this.src='${opt.fallback}';">
+                `;
+
+                card.onclick = () => handleAnswer(opt, card);
+                container.appendChild(card);
+            });
+
+            setTimeout(() => {
+                speakTask();
+            }, 250);
+        }
+
+        function speakTask() {
+            speak(currentSpeechPromptText);
+        }
+
+        function handleAnswer(option, cardElement) {
+            if (isAnsweringBlocked) return;
+
+            if (option.isCorrect) {
+                isAnsweringBlocked = true;
+                playSound('correct');
+                score++;
+                currentQuestion++;
+                updateScoreDisplay();
+
+                // Bei richtiger Antwort wird der Rahmen GRÜN
+                cardElement.style.borderColor = '#10b981';
+                cardElement.classList.add('scale-105');
+
+                const feedback = document.getElementById('feedback-message');
+                feedback.innerText = "Richtig! Super! ✨";
+                feedback.classList.remove('opacity-0');
+
+                speak("Das ist richtig!", () => {
+                    if (currentQuestion >= TOTAL_QUESTIONS) {
+                        setTimeout(showEndGame, 400);
+                    } else {
+                        setTimeout(showNextQuestion, 500);
+                    }
+                });
+
+            } else {
+                playSound('wrong');
+                
+                // Bei falscher Antwort wird der Rahmen ROT & wackelt
+                cardElement.style.borderColor = '#ef4444';
+                cardElement.classList.add('shake');
+
+                setTimeout(() => {
+                    cardElement.classList.remove('shake');
+                    // Rahmen wieder auf das Standard-Gelb zurücksetzen
+                    cardElement.style.borderColor = '#fbbf24';
+                }, 450);
+
+                speak("Versuche es nochmal!");
+            }
+        }
+
+        function showEndGame() {
+            playSound('correct');
+
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 130,
+                    spread: 85,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            showScreen('screen-end');
+            speak("Bravo! Du hast alle 6 Aufgaben geschafft!");
+        }
+
+        window.onload = function() {
+            showScreen('screen-start');
+        };
+    </script>
+</body>
+</html>
